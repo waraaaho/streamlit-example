@@ -1,3 +1,6 @@
 altair
 pandas
 streamlit
+wheel
+ipython
+so-vits-svc-fork
