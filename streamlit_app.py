@@ -4,8 +4,12 @@ import math
 import pandas as pd
 import streamlit as st
 import numpy as np
+from PIL import Image
+import subprocess
+import time
+
 """
-# Welcome to Streamlit!
+# Welcome to AI Singer Corner!
 
 Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:
 
@@ -14,74 +18,115 @@ forums](https://discuss.streamlit.io).
 
 In the meantime, below is an example of what you can do with just a few lines of code:
 """
+def seperate_vocal(files):
+    #seperate files to vocal and bgm
+    return vocal, bgm
+col_1, col_2 = st.columns(2, gap="large")
+with col_1:
+    st.subheader("📁Select Files")
+    files = st.file_uploader("", type=["mp3","mp4","wav",])#, accept_multiple_files=True)
+    print(files)
+    file_upload_status = st.empty()
+
+with col_2:
+    if files is not None:
+        # Translation Settings
+        #files.name is e.g. identity.wav
+        with st.form("Settings"):
+            job_name = st.text_input( #e.g. identityout
+                'Name Your Output', value=f"{files.name.split('.')[0]}out")
+            # source_lang = st.selectbox("Source Language", options=[
+            #     "English", "Chinese (Traditional)", "Chinese (Simplified)"])
+            voice = st.selectbox("Whose Voice", options=[
+                "Yoasobi", "Imagine Dragons",])
+            
+
+            btn_Compose = st.form_submit_button(label="Compose")
+
+        progress_bar = st.progress(0)
+
+        # File Upload
+        if btn_Compose:
+            # blank name is not allowed
+            if not job_name: 
+                st.error("Please type output file name")
+                st.stop()
+            
+            #preprocessing input music
+
+            #save upload music temperily 
+            with open(files.name,'wb') as f:
+                f.write(files.getbuffer())
+            #infer the music with selected voice
+            #now only use my voice 
+            model = 'G_1640.pth'
+            singer = 'canton'
+            #command svc infer -o ./哪裏只得/vocals.out_2.wav -m G_1640.pth -s canton -c config.json -fm crepe -d cpu -t -3 哪裏只得/vocals.wav
+            start = time.time()
+            st.write(f'Infer start: {time.asctime((time.localtime(start)))}')
+            # try: #try to use gpu if exist
+            #     ls_process = subprocess.Popen(#["pwd"],
+            #                             ["svc", "infer", "-o",f"{job_name}.wav",
+            #                             "-m", f"models/{model}", '-s', singer, 
+            #                             '-c', 'models/config.json', 
+            #                             '-fm', 'crepe', 
+            #                             f"{files.name}"], 
+            #                             stdout=subprocess.PIPE, text=True)
+            #     open(f"{job_name}.wav", "rb") # check if infer successfully done
+            #except: # use cpu
+            ls_process = subprocess.Popen(#["pwd"],
+                        ["svc", "infer", "-o",f"{job_name}.wav",
+                        "-m", f"models/{model}", '-s', singer, 
+                        '-c', 'models/config.json', 
+                        '-fm', 'crepe', '-d', 'cpu' ,
+                        f"{files.name}"], 
+                        stdout=subprocess.PIPE, text=True)
+            st.write(ls_process)
+            out,error = ls_process.communicate()
+            st.write(out)
+            st.write(f'Duration: {time.time() - start }')
+            st.write(error)
+            #play music
+            
+            #download music
+            with open(f"{job_name}.wav", "rb") as file:
+                btn_download = st.download_button(
+                        label="Download AI voice",
+                        data=file,
+                        file_name=f"{job_name}.wav",
+                        
+                    )
+
+            # same source and target lang not allowed
+            # if source_lang == target_lang: 
+            #     st.error("Please make sure source language and target language are different")
+            #     st.stop()
+            # files_total = len(files)
+            # file_count = 0
+            # if len(set([file.type for file in files])) != 1:
+            #     st.error("Please make sure all files uploaded are same file type")
+            #     st.stop()
+            # for file in files:
+
+            #     file_name = file.name
+            #     file_id = file.id
+            #     # show uploaded file details Debug
+            #     file_details = {"Filename":file_name,"FileType":file.type,"FileSize":file.size}
+            #     #st.write(file_details)
+                
+            #     with st.spinner("Submitting..."):
+            #         progress_bar.progress(50)
+
+            #         progress_bar.progress(100)
+
+                    
+
+            #     file_upload_status.info(
+            #         f" File {file_count} of {files_total} submitted for Translation")
 
 
-with st.echo(code_location='below'):
-    total_points = st.slider("Number of points in spiral", 1, 5000, 2000)
-    num_turns = st.slider("Number of turns in spiral", 1, 100, 9)
-
-    Point = namedtuple('Point', 'x y')
-    data = []
-
-    points_per_turn = total_points / num_turns
-
-    for curr_point_num in range(total_points):
-        curr_turn, i = divmod(curr_point_num, points_per_turn)
-        angle = (curr_turn + 1) * 2 * math.pi * i / points_per_turn
-        radius = curr_point_num / total_points
-        x = radius * math.cos(angle)
-        y = radius * math.sin(angle)
-        data.append(Point(x, y))
-
-    st.altair_chart(alt.Chart(pd.DataFrame(data), height=500, width=500)
-        .mark_circle(color='#0068c9', opacity=0.5)
-        .encode(x='x:Q', y='y:Q'))
-
-# fetch data
-DATE_COLUMN = 'date/time'
-DATA_URL = ('https://s3-us-west-2.amazonaws.com/'
-         'streamlit-demo-data/uber-raw-data-sep14.csv.gz')
-@st.cache
-def load_data(nrows):
-    data = pd.read_csv(DATA_URL, nrows=nrows)
-    lowercase = lambda x: str(x).lower()
-    data.rename(lowercase, axis='columns', inplace=True)
-    data[DATE_COLUMN] = pd.to_datetime(data[DATE_COLUMN])
-    return data
-
-# Create a text element and let the reader know the data is loading.
-data_load_state = st.text('Loading data...')
-# Load 10,000 rows of data into the dataframe.
-data = load_data(10000)
-# Notify the reader that the data was successfully loaded.
-data_load_state.text("Done! (using st.cache)")
-
-# Inspect the load data
-st.subheader('Raw data')
-st.write(data)
-
-# Draw a histogram
-st.subheader('Number of pickups by hour')
-hist_values = np.histogram(
-    data[DATE_COLUMN].dt.hour, bins=24, range=(0,24))[0]
-st.bar_chart(hist_values)
-
-# Plot data on a map
-st.subheader('Map of all pickups')
-st.map(data)
-
-# new map plot
-hour_to_filter = 17
-# Filter results with a slider
-hour_to_filter = st.slider('hour', 0, 23, 17)  # min: 0h, max: 23h, default: 17h
-filtered_data = data[data[DATE_COLUMN].dt.hour == hour_to_filter]
-st.subheader(f'Map of all pickups at {hour_to_filter}:00')
-st.map(filtered_data)
-
-# Use a button to toggle data
-st.subheader('Raw data')
-st.write(data)
-if st.checkbox('Show raw data'):
-    st.subheader('Raw data')
-    st.write(data)
-
+    else:
+        yoasobi = Image.open('images/yoasobi.png')
+        imagine_dragons = Image.open('images/imagine_dragons.png')
+        st.image(yoasobi, caption='Yoasobi - Idol')
+        st.image(imagine_dragons, caption='Imagine Dragons - Believer')
